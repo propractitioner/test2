@@ -1,51 +1,56 @@
 import streamlit as st
 import yfinance as yf
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
+import random
 
-# Streamlit 앱 설정
-st.title('주식 시가 총액 크기 비교')
+def get_market_cap(ticker):
+    try:
+        stock = yf.Ticker(ticker)
+        return stock.info['marketCap']
+    except:
+        st.warning(f"Could not fetch data for {ticker}")
+        return None
 
-# 사용자 입력 받기
-tickers = st.text_input('주식 티커를 콤마로 구분하여 입력하세요', 'AAPL,MSFT,GOOGL,AMZN,TSLA')
-
-# 주식 데이터를 가져오고 시가 총액 계산
-def get_market_caps(tickers):
-    market_caps = {}
+def visualize_market_caps(tickers):
+    market_caps = []
+    valid_tickers = []
     for ticker in tickers:
-        try:
-            stock = yf.Ticker(ticker)
-            market_cap = stock.info['marketCap']
-            if market_cap:
-                market_caps[ticker] = market_cap
-            else:
-                st.warning(f'{ticker}의 시가 총액 정보를 가져올 수 없습니다.')
-        except Exception as e:
-            st.error(f'{ticker}의 데이터를 가져오는 중 오류가 발생했습니다: {e}')
-    return market_caps
+        cap = get_market_cap(ticker)
+        if cap is not None:
+            market_caps.append(cap)
+            valid_tickers.append(ticker)
+    
+    if not market_caps:
+        st.error("No valid market cap data available.")
+        return
 
-if tickers:
-    tickers = [ticker.strip().upper() for ticker in tickers.split(',')]
-    market_caps = get_market_caps(tickers)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    max_cap = max(market_caps)
+    max_radius = 0.4  # 최대 원의 반지름
+    
+    x_position = 0
+    for ticker, cap in zip(valid_tickers, market_caps):
+        radius = (cap / max_cap) * max_radius
+        color = f'#{random.randint(0, 0xFFFFFF):06x}'
+        circle = Circle((x_position, 0), radius, fill=True, alpha=0.6, color=color)
+        ax.add_patch(circle)
+        ax.text(x_position, -max_radius - 0.05, f"{ticker}\n${cap/1e9:.1f}B", ha='center', va='top')
+        x_position += 2 * max_radius + 0.1  # 원 사이의 간격
+    
+    ax.set_xlim(-max_radius, x_position - max_radius)
+    ax.set_ylim(-max_radius - 0.2, max_radius)
+    ax.set_aspect('equal')  # 원이 찌그러지지 않도록 비율 설정
+    ax.axis('off')
+    
+    plt.title('주식 시가 총액 크기 비교')
+    st.pyplot(fig)
 
-    # 시가 총액 시각화
-    if market_caps:
-        fig, ax = plt.subplots()
-        sizes = [market_caps[ticker] for ticker in tickers if ticker in market_caps]
-        labels = [ticker for ticker in tickers if ticker in market_caps]
+st.title('Ticker Circle Visualizaion Comparison')
 
-        # 원의 위치를 랜덤하게 생성
-        x = range(len(sizes))
-        y = [1] * len(sizes)
-        
-        ax.scatter(x, y, s=[size / 1e9 for size in sizes], alpha=0.5)
-        
-        # 라벨 추가
-        for i, label in enumerate(labels):
-            ax.text(x[i], y[i], label, horizontalalignment='center', verticalalignment='center')
+tickers_input = st.text_input('ticker 심볼들을 쉼표로 구분하여 입력하세요 (예: AAPL,MSFT,GOOGL):')
 
-        plt.axis('off')
-        st.pyplot(fig)
-    else:
-        st.info('유효한 티커를 입력하세요.')
-else:
-    st.info('주식 티커를 입력하세요.')
+if tickers_input:
+    tickers = [ticker.strip() for ticker in tickers_input.split(',')]
+    visualize_market_caps(tickers)
