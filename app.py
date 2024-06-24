@@ -44,7 +44,6 @@ def visualize_market_caps(tickers):
     ax.set_aspect('equal')  # 원이 찌그러지지 않도록 비율 설정
     ax.axis('off')
     
-    plt.title('주식 시가 총액 크기 비교')
     st.pyplot(fig)
 
 st.title('Ticker Circle Visualizaion Comparison')
